@@ -1,0 +1,137 @@
+<template>
+    <lightning-card title="Account Manager" icon-name="standard:account">
+
+        <!-- Loading Spinner -->
+        <div if:true={isLoading} class="slds-is-relative">
+            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+        </div>
+
+        <!-- Create Account Form -->
+        <div class="slds-p-around_medium">
+            <h3 class="slds-text-heading_small slds-m-bottom_small">Create New Account</h3>
+
+            <div class="slds-grid slds-gutters slds-m-bottom_small">
+                <div class="slds-col">
+                    <lightning-input label="Account Name" value={accountName} onchange={handleNameChange} required>
+                    </lightning-input>
+                </div>
+
+                <div class="slds-col">
+                    <lightning-input label="Industry" value={accountIndustry} onchange={handleIndustryChange}>
+                    </lightning-input>
+                </div>
+
+                <div class="slds-col">
+                    <lightning-input label="Phone" value={accountPhone} onchange={handlePhoneChange}>
+                    </lightning-input>
+                </div>
+            </div>
+
+            <div class="slds-m-bottom_small">
+                <lightning-input label="Description" value={accountDescription} onchange={handleDescriptionChange}>
+                </lightning-input>
+            </div>
+
+            <div class="slds-m-bottom_small">
+                <lightning-input label="Site" value={accountSite} onchange={handleSiteChange}>
+                </lightning-input>
+            </div>
+
+            <lightning-button variant="brand" label="Create Account" onclick={handleCreateAccount} disabled={isLoading}>
+            </lightning-button>
+        </div>
+
+        <div class="slds-border_top"></div>
+
+        <!-- Account List -->
+        <div class="slds-p-around_medium">
+            <h3 class="slds-text-heading_small slds-m-bottom_small">Accounts</h3>
+
+            <!-- Error Message -->
+            <template if:true={error}>
+                <div class="slds-text-color_error">
+                    Error loading accounts: {error.body.message}
+                </div>
+            </template>
+
+            <!-- Account Cards -->
+            <template if:true={accounts}>
+                <template for:each={accounts} for:item="account">
+                    <lightning-card key={account.Id} class="slds-m-bottom_small" data-current-id={account.Id}>
+                        <div class="slds-p-around_medium">
+                            <div class="slds-grid slds-grid_align-spread">
+                                <div>
+                                    <!-- View mode (shown when this row is not being edited) -->
+                                    <template if:false={editRecordId}>
+                                        <h4 class="slds-text-heading_small">{account.Name}</h4>
+                                        <p>Industry: {account.Industry}</p>
+                                        <p>Phone: {account.Phone}</p>
+                                        <p>Description: {account.Description}</p>
+                                        <p>Site: {account.Site}</p>
+                                    </template>
+                                    <template if:true={editRecordId}>
+                                        <template if:false={isEditingThisRow}>
+                                            <h4 class="slds-text-heading_small">{account.Name}</h4>
+                                            <p>Industry: {account.Industry}</p>
+                                            <p>Phone: {account.Phone}</p>
+                                            <p>Description: {account.Description}</p>
+                                            <p>Site: {account.Site}</p>
+                                        </template>
+                                    </template>
+
+                                    <!-- Edit mode for the current row -->
+                                    <template if:true={editRecordId}>
+                                        <template if:true={isEditingThisRow}>
+                                            <lightning-input name="editName" label="Name" value={editName}
+                                                onchange={handleEditFieldChange} required></lightning-input>
+                                            <lightning-input name="editIndustry" label="Industry" value={editIndustry}
+                                                onchange={handleEditFieldChange}></lightning-input>
+                                            <lightning-input name="editPhone" label="Phone" value={editPhone}
+                                                onchange={handleEditFieldChange}></lightning-input>
+                                            <lightning-input name="editDescription" label="Description"
+                                                value={editDescription}
+                                                onchange={handleEditFieldChange}></lightning-input>
+                                            <lightning-input name="editSite" label="Site" value={editSite}
+                                                onchange={handleEditFieldChange}></lightning-input>
+                                        </template>
+                                    </template>
+                                </div>
+                                <div class="slds-button-group" role="group">
+                                    <!-- Row action buttons -->
+                                    <template if:true={editRecordId}>
+                                        <template if:true={isEditingThisRow}>
+                                            <lightning-button variant="neutral" label="Cancel"
+                                                onclick={handleCancelEdit}></lightning-button>
+                                            <lightning-button class="slds-m-left_x-small" variant="brand" label="Save"
+                                                onclick={handleSaveEdit} disabled={isLoading}></lightning-button>
+                                        </template>
+                                        <template if:false={isEditingThisRow}>
+                                            <lightning-button variant="neutral" label="Edit" data-id={account.Id}
+                                                onclick={handleStartEdit}></lightning-button>
+                                            <lightning-button class="slds-m-left_x-small" variant="destructive"
+                                                label="Delete" data-id={account.Id}
+                                                onclick={handleDeleteAccount}></lightning-button>
+                                        </template>
+                                    </template>
+                                    <template if:false={editRecordId}>
+                                        <lightning-button variant="neutral" label="Edit" data-id={account.Id}
+                                            onclick={handleStartEdit}></lightning-button>
+                                        <lightning-button class="slds-m-left_x-small" variant="destructive"
+                                            label="Delete" data-id={account.Id}
+                                            onclick={handleDeleteAccount}></lightning-button>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </lightning-card>
+                </template>
+            </template>
+
+            <!-- No Accounts Message -->
+            <template if:false={accounts}>
+                <p>No accounts found.</p>
+            </template>
+        </div>
+
+    </lightning-card>
+</template>
