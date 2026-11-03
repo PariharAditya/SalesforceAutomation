@@ -4,16 +4,60 @@ public with sharing class ApprovalMatrixVerificationController {
         @AuraEnabled public List<Approval_Matrix_Request_Line__c> lines;
     }
 
+    public class ClickUpSyncStatus {
+        @AuraEnabled public String listId;
+        @AuraEnabled public String handoffStatus;
+        @AuraEnabled public Datetime lastPollAt;
+        @AuraEnabled public String lastPollError;
+        @AuraEnabled public Boolean configured;
+    }
+
     @AuraEnabled(cacheable=true)
     public static List<Approval_Matrix_Request__c> getRequests() {
         return [
             SELECT Id, Name, ClickUp_Task_Id__c, Record_Type__c, Status__c,
-                Line_Count__c, Error_Count__c, Processing_Error__c, CreatedDate
+                ClickUp_Task_Url__c, Line_Count__c, Error_Count__c,
+                Processing_Error__c, CreatedDate
             FROM Approval_Matrix_Request__c
             WITH USER_MODE
             ORDER BY CreatedDate DESC
             LIMIT 200
         ];
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static List<Approval_Matrix_Request__c> getClickUpRequests() {
+        return [
+            SELECT Id, Name, ClickUp_Task_Id__c, ClickUp_Task_Url__c,
+                Record_Type__c, Status__c, Line_Count__c, Error_Count__c,
+                Processing_Error__c, CreatedDate
+            FROM Approval_Matrix_Request__c
+            WHERE From_ClickUp__c = true
+            WITH USER_MODE
+            ORDER BY CreatedDate DESC
+            LIMIT 200
+        ];
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static ClickUpSyncStatus getClickUpSyncStatus() {
+        Approval_Matrix_ClickUp_Settings__c settings =
+            Approval_Matrix_ClickUp_Settings__c.getOrgDefaults();
+        ClickUpSyncStatus result = new ClickUpSyncStatus();
+        result.listId = settings == null ? null : settings.ClickUp_List_Id__c;
+        result.handoffStatus = settings == null ? null : settings.Handoff_Status__c;
+        result.lastPollAt = settings == null ? null : settings.Last_Poll_At__c;
+        result.lastPollError = settings == null ? null : settings.Last_Poll_Error__c;
+        result.configured = settings != null &&
+            String.isNotBlank(settings.ClickUp_List_Id__c) &&
+            String.isNotBlank(settings.Handoff_Status__c);
+        return result;
+    }
+
+    @AuraEnabled
+    public static Id syncClickUpNow() {
+        requireVerifier();
+        return System.enqueueJob(new ApprovalMatrixClickUpSyncQueueable());
     }
 
     @AuraEnabled(cacheable=true)
@@ -24,8 +68,9 @@ public with sharing class ApprovalMatrixVerificationController {
         RequestView result = new RequestView();
         result.requestRecord = [
             SELECT Id, Name, ClickUp_Task_Id__c, Record_Type__c, Status__c,
-                Source_File_Id__c, Line_Count__c, Error_Count__c, Verified_By__c,
-                Verified_On__c, Rejection_Reason__c, Processing_Error__c
+                Source_File_Id__c, ClickUp_Task_Url__c, From_ClickUp__c,
+                Line_Count__c, Error_Count__c, Verified_By__c, Verified_On__c,
+                Rejection_Reason__c, Processing_Error__c
             FROM Approval_Matrix_Request__c
             WHERE Id = :requestId
             WITH USER_MODE
@@ -40,12 +85,21 @@ public with sharing class ApprovalMatrixVerificationController {
                 Mapped_RSM_Price_Value__c, Mapped_NSM_Price_Value__c,
                 Matched_Product_Count__c, Existing_Matrix_Count__c,
                 Existing_Matrix_Summary__c, Line_Status__c, Error_Message__c,
-                Warnings__c, Inserted_Matrix_Ids__c
+                Warnings__c, Inserted_Matrix_Ids__c, GM__c, AGM__c, RM__c
             FROM Approval_Matrix_Request_Line__c
             WHERE Request__c = :requestId
             WITH USER_MODE
             ORDER BY CreatedDate, Id
         ];
+        return result;
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static RequestView getClickUpRequest(Id requestId) {
+        RequestView result = getRequest(requestId);
+        if (!result.requestRecord.From_ClickUp__c) {
+            throw new AuraHandledException('This is not a ClickUp-originated request.');
+        }
         return result;
     }
 

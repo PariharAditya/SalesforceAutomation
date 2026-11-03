@@ -321,7 +321,7 @@ public without sharing class ApprovalMatrixTxtService {
 
     public static void validateRequest(Id requestId) {
         Approval_Matrix_Request__c requestRecord = [
-            SELECT Id, Record_Type__c
+            SELECT Id, Record_Type__c, From_ClickUp__c
             FROM Approval_Matrix_Request__c
             WHERE Id = :requestId
             LIMIT 1
@@ -335,7 +335,8 @@ public without sharing class ApprovalMatrixTxtService {
                 Line_Status__c, Error_Message__c, Warnings__c, Parse_Error__c,
                 Matched_Product_Count__c, Existing_Matrix_Count__c,
                 Mapped_No_Approval_Value__c, Mapped_RSM_Price_Value__c,
-                Mapped_NSM_Price_Value__c, Inserted_Matrix_Ids__c
+                Mapped_NSM_Price_Value__c, Inserted_Matrix_Ids__c,
+                GM__c, AGM__c, RM__c
             FROM Approval_Matrix_Request_Line__c
             WHERE Request__c = :requestId
         ];
@@ -348,12 +349,19 @@ public without sharing class ApprovalMatrixTxtService {
         }
 
         Set<String> productCodes = new Set<String>();
+        Map<String, Integer> productCodeCountByValue = new Map<String, Integer>();
         Set<String> divisions = new Set<String>();
         Set<String> categories = new Set<String>();
         Set<String> brands = new Set<String>();
         for (Approval_Matrix_Request_Line__c line : lines) {
             if (requestRecord.Record_Type__c == 'Lighting' && line.Product_Code__c != null) {
                 productCodes.add(line.Product_Code__c);
+                String codeKey = line.Product_Code__c.trim().toUpperCase();
+                productCodeCountByValue.put(
+                    codeKey,
+                    productCodeCountByValue.containsKey(codeKey)
+                        ? productCodeCountByValue.get(codeKey) + 1 : 1
+                );
             } else if (requestRecord.Record_Type__c == 'Power') {
                 if (line.Division__c != null) divisions.add(line.Division__c);
                 if (line.Category__c != null) categories.add(line.Category__c);
@@ -402,7 +410,31 @@ public without sharing class ApprovalMatrixTxtService {
 
         Map<Id, Integer> existingCountByProductId = new Map<Id, Integer>();
         Map<Id, List<String>> existingSummaryByProductId = new Map<Id, List<String>>();
-        if (!productIds.isEmpty()) {
+        Map<String, List<ApprovalMatrix__c>> existingLightingByProductCode =
+            new Map<String, List<ApprovalMatrix__c>>();
+        if (requestRecord.Record_Type__c == 'Lighting' &&
+            requestRecord.From_ClickUp__c == true && !productCodes.isEmpty()) {
+            for (ApprovalMatrix__c matrix : [
+                SELECT Id, Name, productName__c, Request_Type__c, GM__c, AGM__c, RM__c,
+                    ApprovalMatrix_Key__c
+                FROM ApprovalMatrix__c
+                WHERE productName__c IN :productCodes AND Request_Type__c = 'Lighting'
+            ]) {
+                String productCode = matrix.productName__c == null
+                    ? '' : matrix.productName__c.trim().toUpperCase();
+                if (!existingLightingByProductCode.containsKey(productCode)) {
+                    existingLightingByProductCode.put(
+                        productCode,
+                        new List<ApprovalMatrix__c>()
+                    );
+                }
+                existingLightingByProductCode.get(productCode).add(matrix);
+            }
+        }
+        if ((requestRecord.Record_Type__c == 'Power' ||
+            (requestRecord.Record_Type__c == 'Lighting' &&
+                requestRecord.From_ClickUp__c != true)) &&
+            !productIds.isEmpty()) {
             for (Product_Approval_Hierarchy__c matrix : [
                 SELECT Id, Product__c, Record_Type__c, Product_Category__c,
                     Sales_Discount__c, Discount_Percentage__c, Discount_Max__c,
@@ -456,8 +488,21 @@ public without sharing class ApprovalMatrixTxtService {
             Integer existingCount = 0;
 
             if (requestRecord.Record_Type__c == 'Lighting') {
-                if (line.Value_1__c == null || line.Value_2__c == null || line.Value_3__c == null ||
-                    line.Value_1__c <= 0 || line.Value_2__c <= 0 || line.Value_3__c <= 0) {
+                if (requestRecord.From_ClickUp__c == true &&
+                    line.Product_Code__c != null &&
+                    productCodeCountByValue.get(line.Product_Code__c.trim().toUpperCase()) > 1) {
+                    setLineError(line, 'Each item code must appear only once in a Lighting request.');
+                }
+                Boolean hasRoleValues = line.GM__c != null || line.AGM__c != null ||
+                    line.RM__c != null;
+                if (hasRoleValues) {
+                    if (line.GM__c == null || line.AGM__c == null || line.RM__c == null ||
+                        line.GM__c <= 0 || line.AGM__c <= 0 || line.RM__c <= 0) {
+                        setLineError(line, 'GM, AGM, and RM values must all be numeric and greater than zero.');
+                    }
+                } else if (line.Value_1__c == null || line.Value_2__c == null ||
+                    line.Value_3__c == null || line.Value_1__c <= 0 ||
+                    line.Value_2__c <= 0 || line.Value_3__c <= 0) {
                     setLineError(line, 'Lighting values must be numeric and greater than zero.');
                 }
                 if (matches == null || matches.size() != 1) {
@@ -465,23 +510,52 @@ public without sharing class ApprovalMatrixTxtService {
                         ? 'No active Product2 matches this product code.'
                         : 'More than one active Product2 matches this product code.');
                 } else {
-                    existingCount = existingCountByProductId.containsKey(matches[0].Id)
-                        ? existingCountByProductId.get(matches[0].Id) : 0;
-                    line.Existing_Matrix_Summary__c = joinExistingMatrixSummaries(
-                        new List<Id>{ matches[0].Id },
-                        existingSummaryByProductId
-                    );
+                    if (requestRecord.From_ClickUp__c == true) {
+                        String codeKey = line.Product_Code__c.trim().toUpperCase();
+                        List<ApprovalMatrix__c> existingMatrices =
+                            existingLightingByProductCode.get(codeKey);
+                        existingCount = existingMatrices == null ? 0 : existingMatrices.size();
+                        if (existingCount > 1) {
+                            setLineError(
+                                line,
+                                'More than one Lighting ApprovalMatrix record matches this item code.'
+                            );
+                        }
+                        if (existingMatrices != null && !existingMatrices.isEmpty()) {
+                            List<String> summaries = new List<String>();
+                            for (ApprovalMatrix__c matrix : existingMatrices) {
+                                summaries.add(
+                                    'GM=' + matrix.GM__c + ', AGM=' + matrix.AGM__c +
+                                    ', RM=' + matrix.RM__c
+                                );
+                            }
+                            line.Existing_Matrix_Summary__c = String.join(summaries, '\n');
+                        }
+                    } else {
+                        existingCount = existingCountByProductId.containsKey(matches[0].Id)
+                            ? existingCountByProductId.get(matches[0].Id) : 0;
+                        line.Existing_Matrix_Summary__c = joinExistingMatrixSummaries(
+                            new List<Id>{ matches[0].Id },
+                            existingSummaryByProductId
+                        );
+                    }
                 }
-                List<Decimal> values = new List<Decimal>{
-                    line.Value_1__c, line.Value_2__c, line.Value_3__c
-                };
-                values.sort();
-                if (values[0] != null && values[1] != null && values[2] != null) {
-                    line.Mapped_NSM_Price_Value__c = values[0];
-                    line.Mapped_RSM_Price_Value__c = values[1];
-                    line.Mapped_No_Approval_Value__c = values[2];
-                    if (values[0] == values[1] || values[1] == values[2]) {
-                        line.Warnings__c = 'Two or more values are tied; verify the mapping before approval.';
+                if (!hasRoleValues && line.Line_Status__c != 'Error') {
+                    List<Decimal> values = new List<Decimal>{
+                        line.Value_1__c, line.Value_2__c, line.Value_3__c
+                    };
+                    values.sort();
+                    if (values[0] != null && values[1] != null && values[2] != null) {
+                        line.RM__c = values[0];
+                        line.AGM__c = values[1];
+                        line.GM__c = values[2];
+                        line.Mapped_NSM_Price_Value__c = values[0];
+                        line.Mapped_RSM_Price_Value__c = values[1];
+                        line.Mapped_No_Approval_Value__c = values[2];
+                        if (values[0] == values[1] || values[1] == values[2]) {
+                            line.Warnings__c =
+                                'Two or more values are tied; verify the role values before approval.';
+                        }
                     }
                 }
             } else if (requestRecord.Record_Type__c == 'Power') {
@@ -565,7 +639,7 @@ public without sharing class ApprovalMatrixTxtService {
                 Above_Policy_Discount_Percentage__c, Approval_Level__c, Approval_Max__c,
                 Approval_grt_max__c, Above_Policy_Level__c, Inserted_Matrix_Ids__c,
                 Mapped_No_Approval_Value__c, Mapped_RSM_Price_Value__c,
-                Mapped_NSM_Price_Value__c
+                Mapped_NSM_Price_Value__c, GM__c, AGM__c, RM__c
             FROM Approval_Matrix_Request_Line__c
             WHERE Request__c = :requestId AND Id IN :selectedLineIds
         ];
@@ -598,11 +672,16 @@ public without sharing class ApprovalMatrixTxtService {
         List<Approval_Matrix_Request_Line__c> lines
     ) {
         Approval_Matrix_Request__c requestRecord = [
-            SELECT Id, Record_Type__c
+            SELECT Id, Record_Type__c, From_ClickUp__c
             FROM Approval_Matrix_Request__c
             WHERE Id = :requestId
             LIMIT 1
         ];
+        if (requestRecord.Record_Type__c == 'Lighting' &&
+            requestRecord.From_ClickUp__c == true) {
+            insertLightingApprovedLines(requestId, lines);
+            return;
+        }
         Map<Id, List<Product2>> productsByLineId = getProductsForLines(
             requestRecord.Record_Type__c,
             lines
@@ -664,27 +743,164 @@ public without sharing class ApprovalMatrixTxtService {
                 }
             }
         }
+        finishInsertion(
+            requestId,
+            lines,
+            insertedIdsByLineId,
+            failuresByLineId
+        );
+    }
 
+    private static void insertLightingApprovedLines(
+        Id requestId,
+        List<Approval_Matrix_Request_Line__c> lines
+    ) {
+        Set<String> productCodes = new Set<String>();
         for (Approval_Matrix_Request_Line__c line : lines) {
-            List<String> createdIds = insertedIdsByLineId.get(line.Id);
-            line.Inserted_Matrix_Ids__c = createdIds == null
-                ? null : String.join(createdIds, ',');
-            if (failuresByLineId.containsKey(line.Id)) {
-                line.Line_Status__c = 'Error';
-                line.Error_Message__c = String.join(failuresByLineId.get(line.Id), ' ');
+            productCodes.add(line.Product_Code__c);
+        }
+        Map<String, List<Product2>> productsByCode = new Map<String, List<Product2>>();
+        for (Product2 product : [
+            SELECT Id, ProductCode
+            FROM Product2
+            WHERE IsActive = true AND ProductCode IN :productCodes
+        ]) {
+            String codeKey = product.ProductCode == null
+                ? '' : product.ProductCode.trim().toUpperCase();
+            if (!productsByCode.containsKey(codeKey)) {
+                productsByCode.put(codeKey, new List<Product2>());
+            }
+            productsByCode.get(codeKey).add(product);
+        }
+
+        Map<String, List<ApprovalMatrix__c>> existingByCode =
+            new Map<String, List<ApprovalMatrix__c>>();
+        for (ApprovalMatrix__c matrix : [
+            SELECT Id, Name, productName__c, Request_Type__c, ApprovalMatrix_Key__c
+            FROM ApprovalMatrix__c
+            WHERE productName__c IN :productCodes AND Request_Type__c = 'Lighting'
+        ]) {
+            String codeKey = matrix.productName__c == null
+                ? '' : matrix.productName__c.trim().toUpperCase();
+            if (!existingByCode.containsKey(codeKey)) {
+                existingByCode.put(codeKey, new List<ApprovalMatrix__c>());
+            }
+            existingByCode.get(codeKey).add(matrix);
+        }
+
+        List<ApprovalMatrix__c> targets = new List<ApprovalMatrix__c>();
+        List<Id> targetLineIds = new List<Id>();
+        Map<Id, List<String>> insertedIdsByLineId = new Map<Id, List<String>>();
+        Map<Id, List<String>> failuresByLineId = new Map<Id, List<String>>();
+        for (Approval_Matrix_Request_Line__c line : lines) {
+            String codeKey = line.Product_Code__c.trim().toUpperCase();
+            List<Product2> matchedProducts = productsByCode.get(codeKey);
+            if (matchedProducts == null || matchedProducts.size() != 1) {
+                addInsertionFailure(
+                    failuresByLineId,
+                    line.Id,
+                    'The active Product2 match changed after verification; reprocess the request.'
+                );
+                continue;
+            }
+            List<ApprovalMatrix__c> existingMatrices = existingByCode.get(codeKey);
+            if (existingMatrices != null && existingMatrices.size() > 1) {
+                addInsertionFailure(
+                    failuresByLineId,
+                    line.Id,
+                    'More than one Lighting ApprovalMatrix record matches this item code.'
+                );
+                continue;
+            }
+
+            ApprovalMatrix__c target = new ApprovalMatrix__c(
+                productName__c = matchedProducts[0].ProductCode,
+                Request_Type__c = 'Lighting',
+                GM__c = line.GM__c,
+                AGM__c = line.AGM__c,
+                RM__c = line.RM__c
+            );
+            if (existingMatrices != null && existingMatrices.size() == 1) {
+                target.Id = existingMatrices[0].Id;
+                target.Name = existingMatrices[0].Name;
+                target.ApprovalMatrix_Key__c =
+                    existingMatrices[0].ApprovalMatrix_Key__c;
+                if (String.isBlank(target.ApprovalMatrix_Key__c)) {
+                    target.ApprovalMatrix_Key__c =
+                        lightingMatrixKey(matchedProducts[0].ProductCode);
+                }
             } else {
-                line.Line_Status__c = 'Inserted';
-                line.Error_Message__c = null;
+                target.Name = buildLightingMatrixName(matchedProducts[0].ProductCode);
+                target.ApprovalMatrix_Key__c =
+                    lightingMatrixKey(matchedProducts[0].ProductCode);
+            }
+            targets.add(target);
+            targetLineIds.add(line.Id);
+        }
+
+        if (!targets.isEmpty()) {
+            Database.UpsertResult[] results = Database.upsert(
+                targets,
+                ApprovalMatrix__c.ApprovalMatrix_Key__c,
+                false
+            );
+            for (Integer index = 0; index < results.size(); index++) {
+                Id lineId = targetLineIds[index];
+                if (results[index].isSuccess()) {
+                    if (!insertedIdsByLineId.containsKey(lineId)) {
+                        insertedIdsByLineId.put(lineId, new List<String>());
+                    }
+                    insertedIdsByLineId.get(lineId).add(
+                        String.valueOf(results[index].getId())
+                    );
+                } else {
+                    for (Database.Error error : results[index].getErrors()) {
+                        addInsertionFailure(
+                            failuresByLineId,
+                            lineId,
+                            error.getMessage()
+                        );
+                    }
+                }
             }
         }
+        finishInsertion(
+            requestId,
+            lines,
+            insertedIdsByLineId,
+            failuresByLineId
+        );
+    }
+
+    private static void addInsertionFailure(
+        Map<Id, List<String>> failuresByLineId,
+        Id lineId,
+        String message
+    ) {
+        if (!failuresByLineId.containsKey(lineId)) {
+            failuresByLineId.put(lineId, new List<String>());
+        }
+        failuresByLineId.get(lineId).add(message);
+    }
+
+    private static void finishInsertion(
+        Id requestId,
+        List<Approval_Matrix_Request_Line__c> lines,
+        Map<Id, List<String>> insertedIdsByLineId,
+        Map<Id, List<String>> failuresByLineId
+    ) {
         List<Approval_Matrix_Request_Line__c> lineUpdates =
             new List<Approval_Matrix_Request_Line__c>();
         for (Approval_Matrix_Request_Line__c line : lines) {
+            List<String> insertedIds = insertedIdsByLineId.get(line.Id);
+            List<String> failures = failuresByLineId.get(line.Id);
             lineUpdates.add(new Approval_Matrix_Request_Line__c(
                 Id = line.Id,
-                Line_Status__c = line.Line_Status__c,
-                Error_Message__c = line.Error_Message__c,
-                Inserted_Matrix_Ids__c = line.Inserted_Matrix_Ids__c
+                Inserted_Matrix_Ids__c = insertedIds == null
+                    ? null : String.join(insertedIds, ','),
+                Line_Status__c = failures == null ? 'Inserted' : 'Error',
+                Error_Message__c = failures == null
+                    ? null : String.join(failures, ' ')
             ));
         }
         update lineUpdates;
@@ -699,18 +915,31 @@ public without sharing class ApprovalMatrixTxtService {
         Integer errorCount = 0;
         for (Approval_Matrix_Request_Line__c line : allLines) {
             hasErrors = hasErrors || line.Line_Status__c == 'Error';
+            hasUnprocessed = hasUnprocessed || line.Line_Status__c == 'Valid';
             if (line.Line_Status__c == 'Error') {
                 errorCount++;
             }
-            hasUnprocessed = hasUnprocessed || line.Line_Status__c == 'Valid';
         }
-        String status = hasErrors ? 'Error' :
-            (hasUnprocessed ? 'Pending Verification' : 'Inserted');
         update new Approval_Matrix_Request__c(
             Id = requestId,
-            Status__c = status,
+            Status__c = hasErrors ? 'Error' :
+                (hasUnprocessed ? 'Pending Verification' : 'Inserted'),
             Error_Count__c = errorCount
         );
+    }
+
+    private static String lightingMatrixKey(String productCode) {
+        String keyInput = JSON.serialize(
+            new List<String>{ 'lighting', productCode.trim().toUpperCase() }
+        );
+        return EncodingUtil.convertToHex(
+            Crypto.generateDigest('SHA-256', Blob.valueOf(keyInput))
+        );
+    }
+
+    private static String buildLightingMatrixName(String productCode) {
+        String name = 'Lighting - ' + productCode;
+        return name.length() > 80 ? name.substring(0, 80) : name;
     }
 
     private static Map<Id, List<Product2>> getProductsForLines(

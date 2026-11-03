@@ -80,12 +80,12 @@ export default class ApprovalMatrixWorkbench extends LightningElement {
         }
     }
 
-    get selectedRequestLabel() {
-        return this.requests.find((request) => request.Id === this.uploadRequestId)?.Name || '';
-    }
-
     get hasSelection() {
         return Boolean(this.selectedRequestId);
+    }
+
+    get selectedRequestLabel() {
+        return this.requests.find((request) => request.Id === this.uploadRequestId)?.Name || '';
     }
 
     showToast(message, title, variant) {

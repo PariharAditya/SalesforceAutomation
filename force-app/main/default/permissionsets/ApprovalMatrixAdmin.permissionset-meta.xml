@@ -14,11 +14,17 @@
         <tab>Approval_Matrix_Workbench</tab>
         <visibility>Visible</visibility>
     </tabSettings>
+    <tabSettings>
+        <tab>Approval_Matrix_ClickUp</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
     <fieldPermissions><editable>true</editable><field>Product2.Division__c</field><readable>true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field>Product2.Category__c</field><readable>true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field>Product2.Brand__c</field><readable>true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field>Product2.Product_Category__c</field><readable>true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request__c.ClickUp_Task_Id__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request__c.From_ClickUp__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request__c.ClickUp_Task_Url__c</field><readable>true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request__c.Error_Count__c</field><readable>true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request__c.Line_Count__c</field><readable>true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request__c.Processing_Error__c</field><readable>true</readable></fieldPermissions>
@@ -38,6 +44,8 @@
     <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request_Line__c.Discount_Max__c</field><readable>true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request_Line__c.Discount_Percentage__c</field><readable>true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request_Line__c.Division__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request_Line__c.GM__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request_Line__c.AGM__c</field><readable>true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request_Line__c.Error_Message__c</field><readable>true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request_Line__c.Existing_Matrix_Count__c</field><readable>true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request_Line__c.Existing_Matrix_Summary__c</field><readable>true</readable></fieldPermissions>
@@ -51,6 +59,7 @@
     <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request_Line__c.Product_Category__c</field><readable>true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request_Line__c.Product_Code__c</field><readable>true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request_Line__c.Raw_Input__c</field><readable>true</readable></fieldPermissions>
+    <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request_Line__c.RM__c</field><readable>true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request_Line__c.Sales_Discount__c</field><readable>true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request_Line__c.Value_1__c</field><readable>true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field>Approval_Matrix_Request_Line__c.Value_2__c</field><readable>true</readable></fieldPermissions>
