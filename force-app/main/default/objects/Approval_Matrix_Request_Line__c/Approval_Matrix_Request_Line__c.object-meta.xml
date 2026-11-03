@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <enableActivities>false</enableActivities>
+    <enableReports>true</enableReports>
+    <enableSearch>true</enableSearch>
+    <label>Approval Matrix Request Line</label>
+    <nameField>
+        <displayFormat>AMRL-{000000}</displayFormat>
+        <label>Approval Matrix Request Line Number</label>
+        <type>AutoNumber</type>
+    </nameField>
+    <pluralLabel>Approval Matrix Request Lines</pluralLabel>
+    <sharingModel>ControlledByParent</sharingModel>
+</CustomObject>

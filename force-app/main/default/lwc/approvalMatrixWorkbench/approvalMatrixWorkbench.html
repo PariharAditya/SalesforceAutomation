@@ -1,0 +1,70 @@
+<template>
+    <lightning-card title="Approval Matrix Workbench" icon-name="standard:approval">
+        <div class="slds-p-around_medium">
+            <p class="slds-m-bottom_medium">
+                Create a staging request and attach a TXT file. The file is parsed and validated;
+                no approval-matrix record is written until a verifier approves it.
+            </p>
+            <lightning-record-edit-form
+                object-api-name={requestObject}
+                onsuccess={handleRequestCreated}
+                onerror={handleRequestCreateError}>
+                <lightning-messages></lightning-messages>
+                <div class="slds-grid slds-wrap slds-gutters">
+                    <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-3">
+                        <lightning-input-field field-name={taskIdField} required>
+                        </lightning-input-field>
+                    </div>
+                    <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-3 slds-p-top_large">
+                        <lightning-button
+                            type="submit"
+                            label="Create staging request"
+                            variant="brand">
+                        </lightning-button>
+                    </div>
+                </div>
+            </lightning-record-edit-form>
+        </div>
+
+        <div class="slds-border_top slds-p-around_medium">
+            <div class="slds-grid slds-wrap slds-grid_vertical-align-center slds-m-bottom_small">
+                <h2 class="slds-text-heading_small slds-grow">Incoming requests</h2>
+                <lightning-button
+                    label="Refresh"
+                    onclick={handleRefresh}
+                    disabled={isSaving}>
+                </lightning-button>
+            </div>
+            <template lwc:if={error}>
+                <div class="slds-text-color_error slds-m-bottom_small" role="alert">{error}</div>
+            </template>
+            <lightning-datatable
+                key-field="Id"
+                data={requests}
+                columns={columns}
+                max-row-selection="1"
+                onrowselection={handleSelection}>
+            </lightning-datatable>
+        </div>
+
+        <template lwc:if={hasSelection}>
+            <div class="slds-border_top slds-p-around_medium">
+                <h2 class="slds-text-heading_small slds-m-bottom_small">
+                    Attach TXT file to {selectedRequestLabel}
+                </h2>
+                <lightning-file-upload
+                    label="Upload approval matrix TXT"
+                    name="approvalMatrixTxt"
+                    record-id={uploadRequestId}
+                    accept={acceptedFormats}
+                    onuploadfinished={handleUploadFinished}
+                    onerror={handleUploadError}>
+                </lightning-file-upload>
+            </div>
+            <div class="slds-border_top slds-p-around_medium">
+                <c-approval-matrix-verification record-id={selectedRequestId}>
+                </c-approval-matrix-verification>
+            </div>
+        </template>
+    </lightning-card>
+</template>

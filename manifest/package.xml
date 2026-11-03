@@ -136,9 +136,5 @@
         <members>*</members>
         <name>Dashboard</name>
     </types>
-    <types>
-        <members>*</members>
-        <name>InstalledPackage</name>
-    </types>
     <version>68.0</version>
 </Package>
