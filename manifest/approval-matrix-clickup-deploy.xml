@@ -60,6 +60,10 @@
         <name>NamedCredential</name>
     </types>
     <types>
+        <members>ClickUp_API</members>
+        <name>RemoteSiteSetting</name>
+    </types>
+    <types>
         <members>approvalMatrixClickupWorkbench</members>
         <members>approvalMatrixClickupVerification</members>
         <name>LightningComponentBundle</name>
