@@ -3,6 +3,7 @@
     <fullName>Raw_Input__c</fullName>
     <label>Raw Input</label>
     <length>32768</length>
+    <trackTrending>false</trackTrending>
     <type>LongTextArea</type>
     <visibleLines>3</visibleLines>
 </CustomField>

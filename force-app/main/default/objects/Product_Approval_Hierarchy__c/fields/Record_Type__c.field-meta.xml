@@ -3,13 +3,22 @@
     <fullName>Record_Type__c</fullName>
     <label>Record Type</label>
     <required>false</required>
+    <trackTrending>false</trackTrending>
     <type>Picklist</type>
     <valueSet>
         <restricted>true</restricted>
         <valueSetDefinition>
             <sorted>false</sorted>
-            <value><fullName>Power</fullName><default>false</default><label>Power</label></value>
-            <value><fullName>Lighting</fullName><default>false</default><label>Lighting</label></value>
+            <value>
+                <fullName>Power</fullName>
+                <default>false</default>
+                <label>Power</label>
+            </value>
+            <value>
+                <fullName>Lighting</fullName>
+                <default>false</default>
+                <label>Lighting</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>

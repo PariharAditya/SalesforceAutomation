@@ -3,6 +3,7 @@
     <fullName>Existing_Matrix_Summary__c</fullName>
     <label>Existing Matrix Summary</label>
     <length>32768</length>
+    <trackTrending>false</trackTrending>
     <type>LongTextArea</type>
     <visibleLines>5</visibleLines>
 </CustomField>

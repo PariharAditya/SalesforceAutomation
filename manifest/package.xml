@@ -136,5 +136,10 @@
         <members>*</members>
         <name>Dashboard</name>
     </types>
+    <types>
+        <members>*</members>
+        <name>CustomMetadata</name>
+    </types>
+
     <version>68.0</version>
 </Package>

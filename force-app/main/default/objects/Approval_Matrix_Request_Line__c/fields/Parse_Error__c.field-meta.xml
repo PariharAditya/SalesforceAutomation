@@ -3,5 +3,6 @@
     <fullName>Parse_Error__c</fullName>
     <defaultValue>false</defaultValue>
     <label>Parse Error</label>
+    <trackTrending>false</trackTrending>
     <type>Checkbox</type>
 </CustomField>

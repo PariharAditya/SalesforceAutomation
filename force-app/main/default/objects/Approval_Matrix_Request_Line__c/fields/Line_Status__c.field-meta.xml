@@ -3,15 +3,32 @@
     <fullName>Line_Status__c</fullName>
     <label>Line Status</label>
     <required>false</required>
+    <trackTrending>false</trackTrending>
     <type>Picklist</type>
     <valueSet>
         <restricted>true</restricted>
         <valueSetDefinition>
             <sorted>false</sorted>
-            <value><fullName>Valid</fullName><default>true</default><label>Valid</label></value>
-            <value><fullName>Error</fullName><default>false</default><label>Error</label></value>
-            <value><fullName>Approved</fullName><default>false</default><label>Approved</label></value>
-            <value><fullName>Inserted</fullName><default>false</default><label>Inserted</label></value>
+            <value>
+                <fullName>Valid</fullName>
+                <default>true</default>
+                <label>Valid</label>
+            </value>
+            <value>
+                <fullName>Error</fullName>
+                <default>false</default>
+                <label>Error</label>
+            </value>
+            <value>
+                <fullName>Approved</fullName>
+                <default>false</default>
+                <label>Approved</label>
+            </value>
+            <value>
+                <fullName>Inserted</fullName>
+                <default>false</default>
+                <label>Inserted</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>

@@ -5,5 +5,9 @@
     <referenceTo>Approval_Matrix_Request__c</referenceTo>
     <relationshipLabel>Request Lines</relationshipLabel>
     <relationshipName>Request_Lines</relationshipName>
+    <relationshipOrder>0</relationshipOrder>
+    <reparentableMasterDetail>false</reparentableMasterDetail>
+    <trackTrending>false</trackTrending>
     <type>MasterDetail</type>
+    <writeRequiresMasterRead>false</writeRequiresMasterRead>
 </CustomField>
