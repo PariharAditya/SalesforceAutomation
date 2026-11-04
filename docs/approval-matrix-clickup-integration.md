@@ -11,21 +11,36 @@ The ClickUp integration uses Salesforce-initiated API polling. There is no Click
 
 ## Important credential response
 
-ClickUp's authorization code is a one-time input to the token exchange; do not retain it. ClickUp currently documents that OAuth access tokens do not expire, though this can change. Exchange a newly issued code in a private local/API client, then store only the resulting access token in Salesforce's protected Named Credential configuration. The client secret is needed only for the exchange and is not needed by the poller.
+The client ID and client secret are used by `ClickUpAuthProvider` for the one-time authorization-code exchange. Salesforce then keeps the returned access token in the External Credential principal. Apex task-polling code never reads or stores that token. ClickUp currently documents that OAuth access tokens do not expire, though this can change. The authorization code is single-use and is not stored.
+
+The OAuth client secret must be regenerated because an earlier value was exposed. Custom Metadata is org configuration, not an encrypted credential vault: only admins should have access to its `Client_Secret__c`, and the default record file is excluded from Git. Never commit real values.
 
 ## Configure Salesforce
 
-1. In Setup, create a Named Credential named `ClickUp_API` with URL `https://api.clickup.com/api`. Use a protected credential/custom-header configuration for the `Authorization` header and enter the newly issued OAuth access token as its value. Set the header to the raw token value without an additional authentication scheme prefix.
-2. In Setup, manage **Approval Matrix ClickUp Settings** and set the org-default values:
+The Salesforce metadata definitions have been deployed:
+
+- Auth Provider: `ClickUp_Auth`
+- External Credential and named principal: `ClickUp_Ext` / `ClickUp_Principal`
+- Named Credential: `ClickUp_API`, base URL `https://api.clickup.com/api`
+- Custom Metadata type/record: `ClickUp_Auth__mdt` / `ClickUp_Auth.Default`
+- Integration permission set: `ClickUp_Integration` (already assigned to the connected admin user)
+
+The ClickUp OAuth custom metadata record is deployed with empty values by design. Finish the one-time OAuth setup:
+
+1. In Salesforce Setup → **Auth. Providers** → **ClickUp**, copy the Callback URL.
+2. In ClickUp Settings → Apps → your OAuth app, register that exact callback URL as its redirect URL.
+3. In Salesforce Setup → Custom Metadata Types → **ClickUp Auth** → Manage Records → **Default**, set `Client_Id__c`, the regenerated `Client_Secret__c`, and `Callback_Url__c` to the copied Salesforce Callback URL. The source record is intentionally blank and Git-ignored; configure these values in the org only.
+4. In Salesforce Setup → Named Credentials → **External Credentials** → **ClickUp Ext** → Principals → **ClickUp_Principal**, select **Authenticate** and authorize the ClickUp Workspace. The principal must show Configured. Salesforce stores the OAuth access token encrypted; do not paste it into a Custom Metadata record or the Named Credential.
+5. In Salesforce, open the **Approval Matrix ClickUp** page and click **Sync ClickUp now**. Check Last Poll for success. The caller needs the `ClickUp_Integration` permission set; it is assigned to the connected admin user already.
+
+No separate personal token or manual `curl` token exchange is required. The Salesforce Auth Provider executes the OAuth code exchange during Authenticate. No Salesforce Site, guest access, webhook secret, or ClickUp webhook registration is required.
+
+The current live poll error is: “The external credential isn't fully configured.” The Named Credential now exists and resolves, but its OAuth principal has not been authenticated/configured yet. The above callback, Custom Metadata, and principal-authentication steps resolve that state. The old generic callout message was updated to include a bounded Salesforce diagnostic; the latest poll status will show it after another attempt.
+
+In Setup, manage **Approval Matrix ClickUp Settings** and set the org-default values:
    - `ClickUp_List_Id__c`: `1301030000009930`
    - `Handoff_Status__c`: `awaiting approval` (must match the ClickUp status exactly; compare is case-insensitive)
-3. Assign **Approval Matrix Verifier** to users permitted to trigger a manual sync and review requests. Assign **Approval Matrix Admin** to administrators.
-
-No Salesforce Site, guest access, webhook secret, or ClickUp webhook registration is required.
-
-## Configure OAuth token
-
-Use the ClickUp OAuth app authorization URL with the app's client ID and its registered redirect URI to authorize the ClickUp Workspace and obtain a fresh one-time code. Exchange that code using ClickUp's documented `POST https://api.clickup.com/api/v2/oauth/token` endpoint, with `client_id`, `client_secret`, and `code` in the request body. Perform the exchange locally using a private password manager/API client; do not paste the values into chat or source files. Store the returned `access_token` only in the `ClickUp_API` Named Credential.
+Assign **Approval Matrix Verifier** to users permitted to review and approve requests, and **Approval Matrix Admin** to administrators.
 
 Official references:
 
@@ -41,7 +56,7 @@ Official references:
 3. `ApprovalMatrixClickUpIntakeService` parses one `Item | GM | AGM | RM` table per task. GM/AGM/RM are preserved exactly as provided. The existing validator checks active Product2 matches and data values.
 4. The workbench shows staged tasks, parsed values, product matches, current matrix values, and errors. Only verifier approval writes the existing `ApprovalMatrix__c`.
 5. Repeated polls do not duplicate requests or lines. An edited task refreshes staging until it is approved/rejected or a matrix write has begun. Approved, inserted, and rejected requests are terminal and are not silently reapplied.
-6. API/configuration errors are shown in the workbench's last-poll status. A failed task parse remains visible as a staging error.
+6. API/configuration errors are shown in the workbench's last-poll status, including a bounded Salesforce callout exception detail. A failed task parse remains visible as a staging error.
 
 The Salesforce Scheduled Apex job can poll hourly; users can also run a poll manually at any time. To enable the hourly schedule once, run this from **Setup → Developer Console → Debug → Open Execute Anonymous** (or `sf apex run` with an anonymous Apex file):
 
@@ -66,7 +81,9 @@ sf project deploy validate \
   --post-destructive-changes manifest/destructiveChangesPost.xml \
   --test-level RunSpecifiedTests \
   --tests ApprovalMatrixClickUpIntakeTest \
-  --tests ApprovalMatrixTxtServiceTest
+  --tests ApprovalMatrixTxtServiceTest \
+  --tests ApprovalMatrixClickUpApiTest \
+  --tests ClickUpAuthProviderTest
 
 sf project deploy start \
   --target-org <sandbox-alias> \
@@ -74,7 +91,9 @@ sf project deploy start \
   --post-destructive-changes manifest/destructiveChangesPost.xml \
   --test-level RunSpecifiedTests \
   --tests ApprovalMatrixClickUpIntakeTest \
-  --tests ApprovalMatrixTxtServiceTest
+  --tests ApprovalMatrixTxtServiceTest \
+  --tests ApprovalMatrixClickUpApiTest \
+  --tests ClickUpAuthProviderTest
 ```
 
-The poller uses the `ClickUp_API` Named Credential and never stores OAuth tokens or client secrets in source code.
+The poller uses the `ClickUp_API` Named Credential. OAuth client credentials must remain outside source control; only the External Credential stores the authenticated access token.

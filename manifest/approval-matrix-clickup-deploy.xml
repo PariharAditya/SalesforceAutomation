@@ -6,6 +6,9 @@
         <members>ApprovalMatrixClickUpPollScheduler</members>
         <members>ApprovalMatrixClickUpIntakeService</members>
         <members>ApprovalMatrixClickUpIntakeTest</members>
+        <members>ApprovalMatrixClickUpApiTest</members>
+        <members>ClickUpAuthProvider</members>
+        <members>ClickUpAuthProviderTest</members>
         <members>ApprovalMatrixTxtService</members>
         <members>ApprovalMatrixTxtServiceTest</members>
         <members>ApprovalMatrixVerificationController</members>
@@ -15,7 +18,12 @@
         <members>Approval_Matrix_Request__c</members>
         <members>Approval_Matrix_Request_Line__c</members>
         <members>Approval_Matrix_ClickUp_Settings__c</members>
+        <members>ClickUp_Auth__mdt</members>
         <name>CustomObject</name>
+    </types>
+    <types>
+        <members>ClickUp_Auth.Default</members>
+        <name>CustomMetadata</name>
     </types>
     <types>
         <members>Approval_Matrix_Request__c.*</members>
@@ -36,7 +44,20 @@
     <types>
         <members>ApprovalMatrixAdmin</members>
         <members>ApprovalMatrixVerifier</members>
+        <members>ClickUp_Integration</members>
         <name>PermissionSet</name>
+    </types>
+    <types>
+        <members>ClickUp_Auth</members>
+        <name>AuthProvider</name>
+    </types>
+    <types>
+        <members>ClickUp_Ext</members>
+        <name>ExternalCredential</name>
+    </types>
+    <types>
+        <members>ClickUp_API</members>
+        <name>NamedCredential</name>
     </types>
     <types>
         <members>approvalMatrixClickupWorkbench</members>
